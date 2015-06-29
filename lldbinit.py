@@ -1795,6 +1795,7 @@ def findmem(debugger, command, result, dict):
         parser.add_argument("-f", "--file" ,   help="Load find pattern from file");
         parser.add_argument("-c", "--count",   help="How many occurances to find, default is all");
         parser.add_argument("-m", "--mapfile", help="vmmap from a file");
+        parser.add_argument("-a", "--align", help="address shoud align to this size");
 
         parser = parser.parse_args(arg.split());
 
@@ -1828,6 +1829,11 @@ def findmem(debugger, command, result, dict):
         else:
                 print("Wrong option... use findmem --help");
                 return;
+
+	if parser.align != None:
+		align = evaluate(parser.align)
+	else:
+		align = 0
 
 	count = -1;
         if parser.count != None:
@@ -1892,7 +1898,7 @@ def findmem(debugger, command, result, dict):
 		while True:
 			if count == 0: return;
 			idx = membuff.find(search_string);
-			if idx == -1: break;
+			if idx == -1 or (align !=0 and idx%align != 0): break;
 			if count != -1:
 				count = count - 1;
 			off += idx;

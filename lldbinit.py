@@ -15,15 +15,15 @@ Commands which are implemented:
 	dd          - dump hex data at certain address (keep compatibility with .gdbinit)
 		      this shoud be db command
 	ctx/context - dump registers and assembly
-	lb	    - load breakpoints from file and apply them (currently only func names are applied)	 
+	lb	    - load breakpoints from file and apply them (currently only func names are applied)
 	lb_rva	    - load breakpoints from file and apply to main executable, only RVA in this case
-		      and command will determine main program base and apply breaks	
+		      and command will determine main program base and apply breaks
 	u	    - dump instructions at certain address (SoftICE like u command style)
-	ddword	    - dump data as dword 
+	ddword	    - dump data as dword
 	dq	    - dump data as qword
 	dw	    - dump data as word
-	iphone	    - connect to debugserver running on iPhone 
-	findmem	    - command to search memory 
+	iphone	    - connect to debugserver running on iPhone
+	findmem	    - command to search memory
 		      [options]
 		      -s searches for specified string
 		      -u searches for specified unicode string
@@ -42,8 +42,8 @@ Commands which are implemented:
 	as I don't know if this is thread safe, however in my testing (and using it) it worked quite well so
 	I keep using it instead of adding extra command "init" or such when target is created...
 
-	Currently registers dump are done for i386/x86_64/arm 
-	
+	Currently registers dump are done for i386/x86_64/arm
+
 	For supported ARM types for iPhone check here:
 		source/Plugins/Platform/MacOSX/PlatformDarwin.cpp
 		PlatformDarwin::ARMGetSupportedArchitectureAtIndex  <-- maybe wrong, but you have
@@ -57,7 +57,7 @@ if __name__ == "__main__":
 try:
 	import	lldb
 except:
-	pass;	
+	pass;
 import	sys
 import  re
 import	os
@@ -121,6 +121,41 @@ old_arm_lr	= 0;
 old_arm_pc	= 0;
 old_arm_cpsr	= 0;
 
+old_arm64_x0   =0;
+old_arm64_x1   =0;
+old_arm64_x2   =0;
+old_arm64_x3   =0;
+old_arm64_x4   =0;
+old_arm64_x5   =0;
+old_arm64_x6   =0;
+old_arm64_x7   =0;
+old_arm64_x8   =0;
+old_arm64_x9   =0;
+old_arm64_x10  =0;
+old_arm64_x11  =0;
+old_arm64_x12  =0;
+old_arm64_x13  =0;
+old_arm64_x14  =0;
+old_arm64_x15  =0;
+old_arm64_x16  =0;
+old_arm64_x17  =0;
+old_arm64_x18  =0;
+old_arm64_x19  =0;
+old_arm64_x20  =0;
+old_arm64_x21  =0;
+old_arm64_x22  =0;
+old_arm64_x23  =0;
+old_arm64_x24  =0;
+old_arm64_x25  =0;
+old_arm64_x26  =0;
+old_arm64_x27  =0;
+old_arm64_x28  =0;
+old_arm64_fp   =0;
+old_arm64_lr   =0;
+old_arm64_sp   =0;
+old_arm64_pc   =0;
+old_arm64_cpsr =0;
+
 BLACK = 0
 RED = 1
 GREEN = 2
@@ -160,21 +195,21 @@ def	__lldb_init_module(debugger, internal_dict):
 	global hook_stop_added;
 
 	'''
-		If I'm running from $HOME where .lldbinit is located, seems like lldb will load 
+		If I'm running from $HOME where .lldbinit is located, seems like lldb will load
 		.lldbinit 2 times, thus this dirty hack is here to prevent doulbe loading...
 		if somebody knows better way, would be great to know :)
-	'''	
+	'''
 	var = lldb.debugger.GetInternalVariableValue("stop-disassembly-count", lldb.debugger.GetInstanceName());
 	if var.IsValid():
 		var = var.GetStringAtIndex(0);
 		if var == "0":
-			return;	
+			return;
 	res = lldb.SBCommandReturnObject();
-        
+
 	lldb.debugger.GetCommandInterpreter().HandleCommand("settings set target.x86-disassembly-flavor intel", res);
-	lldb.debugger.GetCommandInterpreter().HandleCommand("command script add -f lldbinit.stepo stepo", res);                               
-        lldb.debugger.GetCommandInterpreter().HandleCommand("command script add -f lldbinit.HandleHookStopOnTarget HandleHookStopOnTarget", res);   
-        lldb.debugger.GetCommandInterpreter().HandleCommand("command script add -f lldbinit.dd dd", res);                                           
+	lldb.debugger.GetCommandInterpreter().HandleCommand("command script add -f lldbinit.stepo stepo", res);
+        lldb.debugger.GetCommandInterpreter().HandleCommand("command script add -f lldbinit.HandleHookStopOnTarget HandleHookStopOnTarget", res);
+        lldb.debugger.GetCommandInterpreter().HandleCommand("command script add -f lldbinit.dd dd", res);
         lldb.debugger.GetCommandInterpreter().HandleCommand("command script add -f lldbinit.si si", res);
 	lldb.debugger.GetCommandInterpreter().HandleCommand("command script add -f lldbinit.r  r", res);
 	lldb.debugger.GetCommandInterpreter().HandleCommand("command script add -f lldbinit.r  run", res);
@@ -187,8 +222,8 @@ def	__lldb_init_module(debugger, internal_dict):
 	lldb.debugger.GetCommandInterpreter().HandleCommand("command script add -f lldbinit.ddword ddword", res);
 	lldb.debugger.GetCommandInterpreter().HandleCommand("command script add -f lldbinit.dw dw", res);
 	lldb.debugger.GetCommandInterpreter().HandleCommand("command script add -f lldbinit.IphoneConnect iphone", res);
-	lldb.debugger.GetCommandInterpreter().HandleCommand("command script add -f lldbinit.findmem findmem", res);                       
-       	
+	lldb.debugger.GetCommandInterpreter().HandleCommand("command script add -f lldbinit.findmem findmem", res);
+
 
 	'''
 		target stop-hook can be added only when target is loaded, thus I create thread
@@ -196,25 +231,25 @@ def	__lldb_init_module(debugger, internal_dict):
 		safe, but I hate to add extra command "init" or such to install this hook...
 	'''
 	thread.start_new_thread(wait_for_hook_stop, ());
-	
-	#lldb.debugger.GetCommandInterpreter().HandleCommand("settings set prompt \"\033[01;31m(lldb) \033[0m\"", res);                                                                    
-        lldb.debugger.GetCommandInterpreter().HandleCommand("settings set stop-disassembly-count 0", res);                                      
+
+	#lldb.debugger.GetCommandInterpreter().HandleCommand("settings set prompt \"\033[01;31m(lldb) \033[0m\"", res);
+        lldb.debugger.GetCommandInterpreter().HandleCommand("settings set stop-disassembly-count 0", res);
         return;
 
 
 def	get_arch():
 	return lldb.debugger.GetSelectedTarget().triple.split('-')[0];
 def 	get_frame():
-        #return lldb.debugger.GetSelectedTarget().process.selected_thread.GetSelectedFrame(); 
+        #return lldb.debugger.GetSelectedTarget().process.selected_thread.GetSelectedFrame();
 	#return lldb.debugger.GetSelectedTarget().GetProcess().GetSelectedThread().GetSelectedFrame()
 	#return lldb.debugger.GetTargetAtIndex(0).process.selected_thread.GetFrameAtIndex(0);
-		
+
 	#return frame for stopped thread... there should be one at least...
 	ret = None;
 	for t in get_process():
 		if t.GetStopReason() != lldb.eStopReasonNone and t.GetStopReason() != lldb.eStopReasonInvalid:
 			ret = t.GetFrameAtIndex(0);
-			
+
 	return ret;
 
 def	get_process():
@@ -245,6 +280,12 @@ def	is_x64():
 def	is_arm():
 	arch = get_arch();
 	if "arm" in arch:
+		return True;
+	return False;
+
+def	is_arm64():
+	arch = get_arch();
+	if "arm64" in arch:
 		return True;
 	return False;
 
@@ -282,7 +323,7 @@ def	color(x):
 def	output(x):
 	global GlobalListOutput;
         GlobalListOutput.append(x);
-        
+
 def get_register(reg_name):
 	regs = get_GPRs();
 	if regs == None:
@@ -290,7 +331,7 @@ def get_register(reg_name):
 	for reg in regs:
 		if reg_name == reg.GetName():
 			return reg.GetValue();
-	return "0"; #0; 
+	return "0"; #0;
 
 def get_registers(kind):
     """Returns the registers given the frame and the kind of registers desired.
@@ -309,41 +350,41 @@ def     dump_eflags(eflags):
                 output("O ");
         else:
                 output("o ");
-        
+
         if (eflags >> 0xA) & 1:
                 output("D ");
         else:
                 output("d ");
-        
+
         if (eflags >> 9) & 1:
                 output("I ");
         else:
                 output("i ");
-        
+
         if (eflags >> 8) & 1:
                 output("T ");
         else:
                 output("t ");
-        
+
         if (eflags >> 7) & 1:
                 output("S ");
         else:
                 output("s ");
-        
+
         if (eflags >> 6) & 1:
                 output("Z ");
         else:
                 output("z ");
-        
+
         if (eflags >> 4) & 1:
                 output("A ");
         else:
                 output("a ");
-        
+
         if (eflags >> 2) & 1:
                 output("P ");
         else:
-                output("p ");        
+                output("p ");
 
         if eflags & 1:
                 output("C");
@@ -365,8 +406,8 @@ def     reg64():
         global old_rbp;
         global old_rsi;
         global old_rdi;
-        global old_r8; 
-        global old_r9; 
+        global old_r8;
+        global old_r9;
         global old_r10;
         global old_r11;
         global old_r12;
@@ -400,7 +441,7 @@ def     reg64():
         #not needed as x64 doesn't use them...
 	#ds = int(get_register("ds"), 16);
         #ss = int(get_register("ss"), 16);
-        
+
         color(COLOR_REGNAME);
         output("  RAX: ");
 	if rax == old_rax:
@@ -409,7 +450,7 @@ def     reg64():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.016lX" % (rax));
 	old_rax = rax;
-	
+
 	color(COLOR_REGNAME);
 	output("  RBX: ")
 	if rbx == old_rbx:
@@ -418,7 +459,7 @@ def     reg64():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.016lX" % (rbx));
 	old_rbx = rbx;
-	
+
 	color(COLOR_REGNAME);
 	output("  RBP: ");
 	if rbp == old_rbp:
@@ -427,7 +468,7 @@ def     reg64():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.016lX" % (rbp));
 	old_rbp = rbp;
-	
+
 	color(COLOR_REGNAME);
 	output("  RSP: ");
 	if rsp == old_rsp:
@@ -436,17 +477,17 @@ def     reg64():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.016lX" % (rsp));
 	old_rsp = rsp;
-	
+
 	output("  ");
 	color_bold();
 	color_underline();
 	color(COLOR_CPUFLAGS);
 	dump_eflags(rflags);
 	color_reset();
-	
+
 	output("\n");
-	
-        
+
+
         color(COLOR_REGNAME);
 	output("  RDI: ");
 	if rdi == old_rdi:
@@ -455,7 +496,7 @@ def     reg64():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.016lX" % (rdi));
 	old_rdi = rdi;
-	
+
 	color(COLOR_REGNAME);
 	output("  RSI: ");
 	if rsi == old_rsi:
@@ -464,7 +505,7 @@ def     reg64():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.016lX" % (rsi));
 	old_rsi = rsi;
-	
+
 	color(COLOR_REGNAME);
 	output("  RDX: ");
 	if rdx == old_rdx:
@@ -473,7 +514,7 @@ def     reg64():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.016lX" % (rdx));
 	old_rdx = rdx;
-	
+
 	color(COLOR_REGNAME);
 	output("  RCX: ");
 	if rcx == old_rcx:
@@ -482,7 +523,7 @@ def     reg64():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.016lX" % (rcx));
 	old_rcx = rcx;
-	
+
 	color(COLOR_REGNAME);
 	output("  RIP: ");
 	if rip == old_rip:
@@ -492,7 +533,7 @@ def     reg64():
 	output("0x%.016lX" % (rip));
 	old_rip = rip;
         output("\n");
-        
+
         color(COLOR_REGNAME);
 	output("  R8:  ");
 	if r8 == old_r8:
@@ -501,7 +542,7 @@ def     reg64():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.016lX" % (r8));
 	old_r8 = r8;
-	
+
 	color(COLOR_REGNAME);
 	output("  R9:  ");
 	if r9 == old_r9:
@@ -510,7 +551,7 @@ def     reg64():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.016lX" % (r9));
 	old_r9 = r9;
-	
+
 	color(COLOR_REGNAME);
 	output("  R10: ");
 	if r10 == old_r10:
@@ -519,7 +560,7 @@ def     reg64():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.016lX" % (r10));
 	old_r10 = r10;
-	
+
 	color(COLOR_REGNAME);
 	output("  R11: ");
 	if r11 == old_r11:
@@ -528,7 +569,7 @@ def     reg64():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.016lX" % (r11));
 	old_r11 = r11;
-	
+
 	color(COLOR_REGNAME);
 	output("  R12: ");
 	if r12 == old_r12:
@@ -537,9 +578,9 @@ def     reg64():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.016lX" % (r12));
 	old_r12 = r12;
-	
+
 	output("\n");
-        
+
         color(COLOR_REGNAME);
 	output("  R13: ");
 	if r13 == old_r13:
@@ -548,7 +589,7 @@ def     reg64():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.016lX" % (r13));
 	old_r13 = r13;
-	
+
 	color(COLOR_REGNAME);
 	output("  R14: ");
 	if r14 == old_r14:
@@ -557,7 +598,7 @@ def     reg64():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.016lX" % (r14));
 	old_r14 = r14;
-	
+
 	color(COLOR_REGNAME);
 	output("  R15: ");
 	if r15 == old_r15:
@@ -567,7 +608,7 @@ def     reg64():
 	output("0x%.016lX" % (r15));
 	old_r15 = r15;
         output("\n");
-        
+
         color(COLOR_REGNAME);
 	output("  CS:  ");
 	if cs == old_cs:
@@ -576,7 +617,7 @@ def     reg64():
 		color(COLOR_REGVAL_MODIFIED);
 	output("%.04X" % (cs));
 	old_cs = cs;
-        
+
         color(COLOR_REGNAME);
 	output("  FS: ");
 	if fs == old_fs:
@@ -585,7 +626,7 @@ def     reg64():
 		color(COLOR_REGVAL_MODIFIED);
 	output("%.04X" % (fs));
 	old_fs = fs;
-	
+
 	color(COLOR_REGNAME);
 	output("  GS: ");
 	if gs == old_gs:
@@ -595,7 +636,7 @@ def     reg64():
 	output("%.04X" % (gs));
 	old_gs = gs;
 	output("\n");
-        
+
 def	reg32():
         global old_eax;
         global old_ecx;
@@ -613,7 +654,7 @@ def	reg32():
         global old_ss;
         global old_es;
         global old_eip;
-        
+
 	color(COLOR_REGNAME);
 	output("  EAX: ");
 	eax = int(get_register("eax"), 16);
@@ -623,7 +664,7 @@ def	reg32():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.08X" % (eax));
 	old_eax = eax;
-	
+
 	color(COLOR_REGNAME);
 	output("  EBX: ");
 	ebx = int(get_register("ebx"), 16);
@@ -633,7 +674,7 @@ def	reg32():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.08X" % (ebx));
 	old_ebx = ebx;
-	
+
 	color(COLOR_REGNAME);
 	output("  ECX: ");
 	ecx = int(get_register("ecx"), 16);
@@ -653,7 +694,7 @@ def	reg32():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.08X" % (edx));
 	old_edx = edx;
-	
+
 	output("  ");
 	eflags = int(get_register("eflags"), 16);
 	color_bold();
@@ -661,9 +702,9 @@ def	reg32():
 	color(COLOR_CPUFLAGS);
 	dump_eflags(eflags);
 	color_reset();
-	
+
 	output("\n");
-	
+
 	color(COLOR_REGNAME);
 	output("  ESI: ");
 	esi = int(get_register("esi"), 16);
@@ -673,7 +714,7 @@ def	reg32():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.08X" % (esi));
 	old_esi = esi;
-	
+
 	color(COLOR_REGNAME);
 	output("  EDI: ");
 	edi = int(get_register("edi"), 16);
@@ -683,7 +724,7 @@ def	reg32():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.08X" % (edi));
 	old_edi = edi;
-	
+
 	color(COLOR_REGNAME);
 	output("  EBP: ");
 	ebp = int(get_register("ebp"), 16);
@@ -693,7 +734,7 @@ def	reg32():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.08X" % (ebp));
 	old_ebp = ebp;
-	
+
 	color(COLOR_REGNAME);
 	output("  ESP: ");
 	esp = int(get_register("esp"), 16);
@@ -703,7 +744,7 @@ def	reg32():
 		color(COLOR_REGVAL_MODIFIED);
 	output("0x%.08X" % (esp));
 	old_esp = esp;
-	
+
 	color(COLOR_REGNAME);
 	output("  EIP: ");
 	eip = int(get_register("eip"), 16);
@@ -714,7 +755,7 @@ def	reg32():
 	output("0x%.08X" % (eip));
 	old_eip = eip;
 	output("\n");
-	
+
 	color(COLOR_REGNAME);
 	output("  CS:  ");
 	cs = int(get_register("cs"), 16);
@@ -724,7 +765,7 @@ def	reg32():
 		color(COLOR_REGVAL_MODIFIED);
 	output("%.04X" % (cs));
 	old_cs = cs;
-	
+
 	color(COLOR_REGNAME);
 	output("  DS: ");
 	ds = int(get_register("ds"), 16);
@@ -734,7 +775,7 @@ def	reg32():
 		color(COLOR_REGVAL_MODIFIED);
 	output("%.04X" % (ds));
 	old_ds = ds;
-	
+
 	color(COLOR_REGNAME);
 	output("  ES: ");
 	es = int(get_register("es"), 16);
@@ -744,7 +785,7 @@ def	reg32():
 		color(COLOR_REGVAL_MODIFIED);
 	output("%.04X" % (es));
 	old_es = es;
-	
+
 	color(COLOR_REGNAME);
 	output("  FS: ");
 	fs = int(get_register("fs"), 16);
@@ -754,7 +795,7 @@ def	reg32():
 		color(COLOR_REGVAL_MODIFIED);
 	output("%.04X" % (fs));
 	old_fs = fs;
-	
+
 	color(COLOR_REGNAME);
 	output("  GS: ");
 	gs = int(get_register("gs"), 16);
@@ -764,7 +805,7 @@ def	reg32():
 		color(COLOR_REGVAL_MODIFIED);
 	output("%.04X" % (gs));
 	old_gs = gs;
-	
+
 	color(COLOR_REGNAME);
 	output("  SS: ");
 	ss = int(get_register("ss"), 16);
@@ -775,7 +816,7 @@ def	reg32():
 	output("%.04X" % (ss));
 	old_ss = ss;
 	output("\n");
-	
+
 def dump_cpsr(cpsr):
 	if (cpsr >> 31) & 1:
 		output("N ");
@@ -791,22 +832,22 @@ def dump_cpsr(cpsr):
 		output("C ");
 	else:
 		output("c ");
-	
+
 	if (cpsr >> 28) & 1:
 		output("V ");
 	else:
 		output("v ");
-	
+
 	if (cpsr >> 27) & 1:
 		output("Q ");
 	else:
 		output("q ");
-	
+
 	if (cpsr >> 24) & 1:
 		output("J ");
 	else:
 		output("j ");
-	
+
 	if (cpsr >> 9) & 1:
 		output("E ");
 	else:
@@ -827,25 +868,25 @@ def dump_cpsr(cpsr):
 		output("T");
 	else:
 		output("t");
-		
+
 def regarm():
-	global	old_arm_r0;      
-	global	old_arm_r1;      
-	global	old_arm_r2;      
-	global	old_arm_r3;      
-	global	old_arm_r4;      
-	global	old_arm_r5;      
-	global	old_arm_r6;      
-	global	old_arm_r7;      
-	global	old_arm_r8;      
-	global	old_arm_r9;      
-	global	old_arm_r10;     
-	global	old_arm_r11;     
-	global	old_arm_r12;     
-	global	old_arm_sp;      
-	global	old_arm_lr;      
-	global	old_arm_pc;      
-	global	old_arm_cpsr;    
+	global	old_arm_r0;
+	global	old_arm_r1;
+	global	old_arm_r2;
+	global	old_arm_r3;
+	global	old_arm_r4;
+	global	old_arm_r5;
+	global	old_arm_r6;
+	global	old_arm_r7;
+	global	old_arm_r8;
+	global	old_arm_r9;
+	global	old_arm_r10;
+	global	old_arm_r11;
+	global	old_arm_r12;
+	global	old_arm_sp;
+	global	old_arm_lr;
+	global	old_arm_pc;
+	global	old_arm_cpsr;
 
 	color(COLOR_REGNAME);
         output("  R0:  ");
@@ -886,7 +927,7 @@ def regarm():
                 color(COLOR_REGVAL_MODIFIED);
         output("0x%.08X" % (r3));
         old_arm_r3 = r3;
-	
+
 	output(" ");
 	color_bold();
         color_underline();
@@ -896,7 +937,7 @@ def regarm():
 	color_reset();
 
 	output("\n");
-	
+
 
         color(COLOR_REGNAME);
         output("  R4:  ");
@@ -979,7 +1020,7 @@ def regarm():
                 color(COLOR_REGVAL_MODIFIED);
         output("0x%.08X" % (r11));
         old_arm_r11 = r11;
-	
+
 	output("\n");
 
         color(COLOR_REGNAME);
@@ -1023,12 +1064,17 @@ def regarm():
         old_arm_pc = pc;
 	output("\n");
 
+def regarm64():
+	return
+
 def print_registers():
 	arch = get_arch();
-	if is_i386(): 
+	if is_i386():
 		reg32();
 	elif is_x64():
 		reg64();
+	elif is_arm64():
+		regarm64();
 	elif is_arm():
 		regarm();
 def get_GPRs():
@@ -1048,47 +1094,47 @@ def	HandleHookStopOnTarget(debugger, command, result, dict):
 	# Don't display anything if we're inside Xcode
 	if os.getenv('PATH').startswith('/Applications/Xcode.app'):
 		return
-	
+
 	global GlobalListOutput;
 	global arm_type;
-	
-	debugger.SetAsync(True);	
+
+	debugger.SetAsync(True);
 	frame = get_frame();
 	if not frame: return;
-	        
+
 	thread= frame.GetThread();
-	while True:	
+	while True:
 		frame = get_frame();
 		thread = frame.GetThread();
 		#print("----------------------------------");
 		#for t in get_process():
 		#	print("Thread stop reason : %d" % (t.GetStopReason()));
-        
-		if thread.GetStopReason() == lldb.eStopReasonNone or thread.GetStopReason() == lldb.eStopReasonInvalid: 
+
+		if thread.GetStopReason() == lldb.eStopReasonNone or thread.GetStopReason() == lldb.eStopReasonInvalid:
 			time.sleep(0.001);
 		else:
 			break;
-	
+
 	GlobalListOutput = [];
-	
+
 	arch = get_arch();
-	if not is_i386() and not is_x64() and not is_arm():
+	if not is_i386() and not is_x64() and not is_arm64() and not is_arm():
 		#this is for ARM probably in the future... when I will need it...
 		print("Unknown architecture : " + arch);
 		return;
-	
+
 	output("\n");
 	color(COLOR_SEPARATOR);
 	if is_i386() or is_arm():
         	output("---------------------------------------------------------------------------------");
 	elif is_x64():
 	        output("-----------------------------------------------------------------------------------------------------------------------");
-	        
+
 	color_bold();
 	output("[regs]\n");
 	color_reset();
 	print_registers();
-	
+
 	color(COLOR_SEPARATOR);
 	if is_i386() or is_arm():
         	output("---------------------------------------------------------------------------------");
@@ -1097,27 +1143,27 @@ def	HandleHookStopOnTarget(debugger, command, result, dict):
 	color_bold();
 	output("[code]\n");
 	color_reset();
-	
+
 	if is_i386():
         	pc = get_register("eip");
 	elif is_x64():
 	        pc = get_register("rip");
 	elif is_arm():
-		pc = get_register("pc");        
-	
+		pc = get_register("pc");
+
         res = lldb.SBCommandReturnObject();
         if is_arm():
-		cpsr = int(get_register("cpsr"), 16); 
+		cpsr = int(get_register("cpsr"), 16);
 		t = (cpsr >> 5) & 1;
 		if t:
 			#it's thumb
-			arm_type = "thumbv7-apple-ios"; 
+			arm_type = "thumbv7-apple-ios";
 		else:
 			arm_type = "armv7-apple-ios";
 		lldb.debugger.GetCommandInterpreter().HandleCommand("disassemble -A " + arm_type + " --start-address=" + pc + " --count=8", res)
        	else:
 		lldb.debugger.GetCommandInterpreter().HandleCommand("disassemble --start-address=" + pc + " --count=8", res);
-	data = res.GetOutput(); 
+	data = res.GetOutput();
 	#split lines... and mark currently executed code...
 	data = data.split("\n");
 	#detemine what to hl, as sometimes lldb won't put => into stoped thread... well...
@@ -1128,8 +1174,8 @@ def	HandleHookStopOnTarget(debugger, command, result, dict):
 	#	line_to_hl = 0;
 	#if data[0][0:2] != '  ':
 	#	line_to_hl = 1;
-	
-	#now we look when pc is held in disassembly and we color only that line	
+
+	#now we look when pc is held in disassembly and we color only that line
 	pc_text = int(pc, 16);
 	pc_text = hex(pc_text);
 	#print(pc_text);
@@ -1154,15 +1200,15 @@ def	HandleHookStopOnTarget(debugger, command, result, dict):
                 output("-----------------------------------------------------------------------------------------------------------------------------");
         color_reset();
        	output("\n");
-	
+
 	output("Stop reason : " + str(thread.GetStopDescription(100))); #str(lldb.debugger.GetSelectedTarget().process.selected_thread.GetStopDescription(100)));
-        output("\r");	
+        output("\r");
 	data = "".join(GlobalListOutput);
-	
+
 	result.PutCString(data);
-	result.SetStatus(lldb.eReturnStatusSuccessFinishResult);  
+	result.SetStatus(lldb.eReturnStatusSuccessFinishResult);
 	return 0;
-	
+
 def	LoadBreakPointsRva(debugger, command, result, dict):
 	global	GlobalOutputList;
 	GlobalOutputList = [];
@@ -1174,7 +1220,7 @@ def	LoadBreakPointsRva(debugger, command, result, dict):
         #for x in range (0, nummods):
         #       mod = target.GetModuleAtIndex(x);
         #       #print(dir(mod));
-        #       print(target.GetModuleAtIndex(x));              
+        #       print(target.GetModuleAtIndex(x));
         #       for sec in mod.section_iter():
         #               addr = sec.GetLoadAddress(target);
         #               name = sec.GetName();
@@ -1209,7 +1255,7 @@ def	LoadBreakPointsRva(debugger, command, result, dict):
 		line = line.rstrip();
 		if not line: break;
 		debugger.HandleCommand("breakpoint set -a " + hex(loadaddr + long(line, 16)));
-	f.close();	
+	f.close();
 
 
 def	LoadBreakPoints(debugger, command, result, dict):
@@ -1230,7 +1276,7 @@ def	LoadBreakPoints(debugger, command, result, dict):
 		if not line:
 			break;
 		debugger.HandleCommand("breakpoint set --name " + line);
-	f.close();		
+	f.close();
 
 '''
 	si, c, r instruction override deault ones to consume their output.
@@ -1270,7 +1316,7 @@ def	DumpInstructions(debugger, command, result, dict):
 	global GlobalListOutput;
 	global arm_type;
 	GlobalListOutput = [];
-	
+
 	if is_arm():
 		cpsr = int(get_register("cpsr"), 16);
                 t = (cpsr >> 5) & 1;
@@ -1295,12 +1341,12 @@ def	DumpInstructions(debugger, command, result, dict):
 		if is_arm():
 			lldb.debugger.GetCommandInterpreter().HandleCommand("disassemble -A "+arm_type+" --start-address=" + cmd[0] + " --count="+cmd[1], res);
 			lldb.debugger.GetCommandInterpreter().HandleCommand("disassemble --start-address=" + cmd[0] + " --count="+cmd[1], res);
-       	
+
 	if res.Succeeded() == True:
  		output(res.GetOutput());
 	else:
 		output("Error getting instructions for : " + command);
-	
+
 	result.PutCString("".join(GlobalListOutput));
 	result.SetStatus(lldb.eReturnStatusSuccessFinishResult);
 
@@ -1318,23 +1364,23 @@ def	DumpInstructions(debugger, command, result, dict):
                         	  LazyBool skip_prologue,
                         	  bool internal,
                           	  bool hardware)
-	
+
 '''
 
 bplist = [];
 
 def	stepo(debugger, command, result, dict):
-        global GlobalListOutput; 
+        global GlobalListOutput;
         global arm_type;
 	GlobalListOutput = [];
        	debugger.SetAsync(True);
         arch = get_arch();
-	
+
 	result.SetStatus(lldb.eReturnStatusSuccessFinishNoResult);
-        
+
         err = lldb.SBError();
         target = lldb.debugger.GetSelectedTarget();
-        
+
 	if is_arm():
                 cpsr = int(get_register("cpsr"), 16);
                 t = (cpsr >> 5) & 1;
@@ -1348,8 +1394,8 @@ def	stepo(debugger, command, result, dict):
 	if is_arm():
         	lldb.debugger.GetCommandInterpreter().HandleCommand("disassemble -A " +arm_type + " --raw --start-address=$pc --count=2", res);
 	else:
-		lldb.debugger.GetCommandInterpreter().HandleCommand("disassemble --raw --start-address=$pc --count=2", res);	
-	
+		lldb.debugger.GetCommandInterpreter().HandleCommand("disassemble --raw --start-address=$pc --count=2", res);
+
 	#lldb.debugger.GetCommandInterpreter().HandleCommand("x/2i $pc", res);
 	if res.Succeeded() != True:
 		output("[X] Error in stepo... can't disassemble at pc");
@@ -1359,22 +1405,22 @@ def	stepo(debugger, command, result, dict):
 	#as lldb changes disassembly very often... sometimes is has ->
 	#sometimes doesn't, and instead of always looking for different
 	#pattern, just use regex... Matching hex is dropped to 4 digits
-	#because of x32 where it prints 4 digits...	
-	stuff = res.GetOutput();	
+	#because of x32 where it prints 4 digits...
+	stuff = res.GetOutput();
 	stuff = stuff.splitlines(True);
        	p = re.compile("0x[\da-fA-F]{4,16}");
 	try:
-		#and yet another update... seriously... 
+		#and yet another update... seriously...
 		current_pc = p.search(stuff[0]).group(0);
 	except:
 		stuff = stuff[1:];
 		current_pc = p.search(stuff[0]).group(0);
-	
+
 	next_pc    = p.search(stuff[1]).group(0);
 
 	current_pc = long(current_pc, 16);
 	next_pc	   = long(next_pc, 16);
-	
+
 	pc_inst = stuff[0].split(": ")[1];
 	pc_inst = pc_inst.split()[0];
 
@@ -1421,35 +1467,35 @@ def quotechars( chars ):
 	for x in chars:
 		if ord(x) >= 0x20 and ord(x) <= 126:
 			data += x;
-		else:		
+		else:
 			data += ".";
 	return data;
 
 '''
 	Output nice hexdump... Should be db (in the future) so we can give dw/dd/dq
 	outputs as it's done with any normal debugger...
-'''                    
+'''
 def     dd(debugger, command, result, dict):
         global GlobalListOutput;
-        
+
         GlobalListOutput = [];
-        
+
         arch = get_arch();
         value = get_frame().EvaluateExpression(command);
         if value.IsValid() == False:
                 output("Error evaluating expression : " + command);
                 result.PutCString("".join(GlobalListOutput));
                 return;
-        try:        
+        try:
                 value = int(value.GetValue(), 10);
         except:
                 output("Error evaluating expression : " + command);
                 result.PutCString("".join(GlobalListOutput));
                 return;
-        
+
         err = lldb.SBError();
         target = lldb.debugger.GetSelectedTarget();
-	size = 0x100; 
+	size = 0x100;
        	while size != 0:
                 membuff = target.GetProcess().ReadMemory(value, size, err);
                 if err.Success() == False and size == 0:
@@ -1459,7 +1505,7 @@ def     dd(debugger, command, result, dict):
                 if err.Success() == True:
                         break;
                 size = size - 1;
-        membuff = membuff + "\x00" * (0x100-size); 
+        membuff = membuff + "\x00" * (0x100-size);
         color(BLUE);
         if get_pointer_size() == 4: #is_i386() or is_arm():
                 output("[0x0000:0x%.08X]" % value);
@@ -1470,7 +1516,7 @@ def     dd(debugger, command, result, dict):
         color_bold();
         output("[data]")
         color_reset();
-        output("\n");        
+        output("\n");
         #output(hexdump(value, membuff, " ", 16));
         index = 0;
         while index < 0x100:
@@ -1481,24 +1527,24 @@ def     dd(debugger, command, result, dict):
                         szaddr = "0x%.016lX" % value;
 		fmtnice = "%.02X %.02X %.02X %.02X %.02X %.02X %.02X %.02X"
 		fmtnice = fmtnice + " - " + fmtnice;
-                output("\033[1m%s :\033[0m %.02X %.02X %.02X %.02X %.02X %.02X %.02X %.02X - %.02X %.02X %.02X %.02X %.02X %.02X %.02X %.02X \033[1m%s\033[0m" % 
-			(szaddr, 
-			data[0], 
-			data[1], 
-			data[2], 
-			data[3], 
-			data[4], 
-			data[5], 
-			data[6], 
-			data[7], 
-			data[8], 
-			data[9], 
-			data[10], 
-			data[11], 
-			data[12], 
-			data[13], 
-			data[14], 
-			data[15], 
+                output("\033[1m%s :\033[0m %.02X %.02X %.02X %.02X %.02X %.02X %.02X %.02X - %.02X %.02X %.02X %.02X %.02X %.02X %.02X %.02X \033[1m%s\033[0m" %
+			(szaddr,
+			data[0],
+			data[1],
+			data[2],
+			data[3],
+			data[4],
+			data[5],
+			data[6],
+			data[7],
+			data[8],
+			data[9],
+			data[10],
+			data[11],
+			data[12],
+			data[13],
+			data[14],
+			data[15],
 			quotechars(membuff[index:index+0x10])));
                 if index + 0x10 != 0x100:
                         output("\n");
@@ -1556,7 +1602,7 @@ def     dq(debugger, command, result, dict):
         color_bold();
         output("[data]")
         color_reset();
-	output("\n");	
+	output("\n");
 	index = 0;
 	while index < 0x100:
 		(mem0, mem1, mem2, mem3) = struct.unpack("QQQQ", membuff[index:index+0x20]);
@@ -1594,7 +1640,7 @@ def     ddword(debugger, command, result, dict):
         err = lldb.SBError();
         target = lldb.debugger.GetSelectedTarget();
         size = 0x100;
-	while size != 0:	
+	while size != 0:
 		membuff = target.GetProcess().ReadMemory(value, size, err);
         	if err.Success() == False and size == 0:
                 	output(str(err));
@@ -1622,18 +1668,18 @@ def     ddword(debugger, command, result, dict):
                         szaddr = "0x%.08X" % value;
                 else:  #is_x64():
                         szaddr = "0x%.016lX" % value;
-                output("\033[1m%s :\033[0m %.08X %.08X %.08X %.08X \033[1m%s\033[0m" % (szaddr, 
-											mem0, 
-											mem1, 
-											mem2, 
-											mem3, 
+                output("\033[1m%s :\033[0m %.08X %.08X %.08X %.08X \033[1m%s\033[0m" % (szaddr,
+											mem0,
+											mem1,
+											mem2,
+											mem3,
 											quotechars(membuff[index:index+0x10])));
                 if index + 0x10 != 0x100:
                         output("\n");
                 index += 0x10;
                 value += 0x10;
         color_reset();
-	result.PutCString("".join(GlobalListOutput));	
+	result.PutCString("".join(GlobalListOutput));
 	result.SetStatus(lldb.eReturnStatusSuccessFinishResult);
 
 def     dw(debugger, command, result, dict):
@@ -1686,7 +1732,7 @@ def     dw(debugger, command, result, dict):
                         szaddr = "0x%.08X" % value;
                 else: #is_x64():
                         szaddr = "0x%.016lX" % value;
-                output("\033[1m%s :\033[0m %.04X %.04X %.04X %.04X %.04X %.04X %.04X %.04X \033[1m%s\033[0m" % (szaddr, 
+                output("\033[1m%s :\033[0m %.04X %.04X %.04X %.04X %.04X %.04X %.04X %.04X \033[1m%s\033[0m" % (szaddr,
 			data[0],
 			data[1],
 			data[2],
@@ -1704,10 +1750,10 @@ def     dw(debugger, command, result, dict):
         result.PutCString("".join(GlobalListOutput));
 	result.SetStatus(lldb.eReturnStatusSuccessFinishResult);
 
-def IphoneConnect(debugger, command, result, dict):	
+def IphoneConnect(debugger, command, result, dict):
 	global GlobalListOutput;
 	GlobalListOutput = [];
-		
+
 	if len(command) == 0 or ":" not in command:
 		output("Connect to remote iPhone debug server");
 		output("\n");
@@ -1739,7 +1785,7 @@ def findmem(debugger, command, result, dict):
         global GlobalListOutput;
         GlobalListOutput = [];
 
-	arg = str(command);	
+	arg = str(command);
 	parser = argparse.ArgumentParser(prog="lldb");
         parser.add_argument("-s", "--string",  help="Search string");
         parser.add_argument("-u", "--unicode", help="Search unicode string");
@@ -1748,9 +1794,10 @@ def findmem(debugger, command, result, dict):
         parser.add_argument("-q", "--qword",   help="Find qword (native packing)");
         parser.add_argument("-f", "--file" ,   help="Load find pattern from file");
         parser.add_argument("-c", "--count",   help="How many occurances to find, default is all");
+        parser.add_argument("-m", "--mapfile", help="vmmap from a file");
 
         parser = parser.parse_args(arg.split());
-	
+
         if parser.string != None:
                 search_string = parser.string;
         elif parser.unicode != None:
@@ -1781,23 +1828,32 @@ def findmem(debugger, command, result, dict):
         else:
                 print("Wrong option... use findmem --help");
                 return;
-	
+
 	count = -1;
         if parser.count != None:
         	count = evaluate(parser.count);
 		if count == None:
 			print("Error evaluating count : " + parser.count);
 			return;
-	
 	process = lldb.debugger.GetSelectedTarget().GetProcess();
-	pid = process.GetProcessID();
-	output_data = subprocess.check_output(["/usr/bin/vmmap", "%d" % pid])
-	lines = output_data.split("\n");
-	#print(lines);
-	#this relies on output from /usr/bin/vmmap so code is dependant on that 
-	#only reason why it's used is for better description of regions, which is
-	#nice to have. If they change vmmap in the future, I'll use my version 
-	#and that output is much easier to parse...
+	if not parser.mapfile:
+		pid = process.GetProcessID();
+		output_data = subprocess.check_output(["/usr/bin/vmmap", "%d" % pid])
+		lines = output_data.split("\n");
+		#print(lines);
+		#this relies on output from /usr/bin/vmmap so code is dependant on that
+		#only reason why it's used is for better description of regions, which is
+		#nice to have. If they change vmmap in the future, I'll use my version
+		#and that output is much easier to parse...
+	else:
+		f = 0;
+		try:
+			f = open(parser.mapfile, "rb");
+		except:
+			print("Failed to open mapfile: " + parser.mapfile);
+			return;
+		lines = f.read().split("\n");
+		f.close()
 	newlines = [];
 	for x in lines:
 		p = re.compile("([\S\s]+)\s([\da-fA-F]{16}-[\da-fA-F]{16}|[\da-fA-F]{8}-[\da-fA-F]{8})");
@@ -1809,10 +1865,10 @@ def findmem(debugger, command, result, dict):
                 mem_start = long(mem_range.split("-")[0], 16);  #0x000000-0x000000
                 mem_end   = long(mem_range.split("-")[1], 16);
 		tmp.append(mem_name);
-		tmp.append(mem_start);		
+		tmp.append(mem_start);
 		tmp.append(mem_end);
 		newlines.append(tmp);
-	
+
 	lines = sorted(newlines, key=lambda sortnewlines: sortnewlines[1]);
 	#move line extraction a bit up, thus we can latter sort it, as vmmap gives
 	#readable pages only, and then writable pages, so it looks ugly a bit :)
@@ -1822,13 +1878,13 @@ def findmem(debugger, command, result, dict):
 		mem_start= x[1];
 		mem_end  = x[2];
 		mem_size = mem_end - mem_start;
-	
+
 		err = lldb.SBError();
-        	    
+
                 membuff = process.ReadMemory(mem_start, mem_size, err);
                 if err.Success() == False:
-                        #output(str(err));
-                        #result.PutCString("".join(GlobalListOutput));
+			output(str(err));
+			result.PutCString("".join(GlobalListOutput));
                         continue;
 		off = 0;
 		base_displayed = 0;
@@ -1838,17 +1894,17 @@ def findmem(debugger, command, result, dict):
 			idx = membuff.find(search_string);
 			if idx == -1: break;
 			if count != -1:
-				count = count - 1;		
+				count = count - 1;
 			off += idx;
-	
-			GlobalListOutput = [];	
-			
+
+			GlobalListOutput = [];
+
 			if get_pointer_size() == 4:
 				ptrformat = "%.08X";
 			else:
 				ptrformat = "%.016lX";
 
-			color_reset();	
+			color_reset();
 			output("Found at : ");
 			color(GREEN);
 			output(ptrformat % (mem_start + off));

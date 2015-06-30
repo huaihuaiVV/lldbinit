@@ -233,7 +233,7 @@ def	__lldb_init_module(debugger, internal_dict):
 	thread.start_new_thread(wait_for_hook_stop, ());
 
 	#lldb.debugger.GetCommandInterpreter().HandleCommand("settings set prompt \"\033[01;31m(lldb) \033[0m\"", res);
-        lldb.debugger.GetCommandInterpreter().HandleCommand("settings set stop-disassembly-count 0", res);
+	lldb.debugger.GetCommandInterpreter().HandleCommand("settings set stop-disassembly-count 0", res);
         return;
 
 
@@ -280,7 +280,8 @@ def	is_x64():
 def	is_arm():
 	arch = get_arch();
 	if "arm" in arch:
-		return True;
+		if not is_arm64():
+			return True;
 	return False;
 
 def	is_arm64():
@@ -1127,7 +1128,7 @@ def	HandleHookStopOnTarget(debugger, command, result, dict):
 	color(COLOR_SEPARATOR);
 	if is_i386() or is_arm():
         	output("---------------------------------------------------------------------------------");
-	elif is_x64():
+	elif is_x64() or is_arm64():
 	        output("-----------------------------------------------------------------------------------------------------------------------");
 
 	color_bold();
@@ -1138,17 +1139,23 @@ def	HandleHookStopOnTarget(debugger, command, result, dict):
 	color(COLOR_SEPARATOR);
 	if is_i386() or is_arm():
         	output("---------------------------------------------------------------------------------");
-	elif is_x64():
+	elif is_x64() or is_arm64():
 	        output("-----------------------------------------------------------------------------------------------------------------------");
 	color_bold();
 	output("[code]\n");
 	color_reset();
 
 	if is_i386():
-        	pc = get_register("eip");
+		pc_str = "$eip";
+		pc = get_register("eip");
 	elif is_x64():
-	        pc = get_register("rip");
+	        pc_str = "$rip";
+		pc = get_register("rip");
+	elif is_arm64():
+		pc_str = "$pc";
+		pc = get_register("pc");
 	elif is_arm():
+		pc_str = "$pc";
 		pc = get_register("pc");
 
         res = lldb.SBCommandReturnObject();
@@ -1160,9 +1167,9 @@ def	HandleHookStopOnTarget(debugger, command, result, dict):
 			arm_type = "thumbv7-apple-ios";
 		else:
 			arm_type = "armv7-apple-ios";
-		lldb.debugger.GetCommandInterpreter().HandleCommand("disassemble -A " + arm_type + " --start-address=" + pc + " --count=8", res)
+		lldb.debugger.GetCommandInterpreter().HandleCommand("disassemble -A " + arm_type + " --start-address=" + pc_str + "-16 --count=8", res)
        	else:
-		lldb.debugger.GetCommandInterpreter().HandleCommand("disassemble --start-address=" + pc + " --count=8", res);
+		lldb.debugger.GetCommandInterpreter().HandleCommand("disassemble --start-address=" + pc_str + "-16 --count=16", res);
 	data = res.GetOutput();
 	#split lines... and mark currently executed code...
 	data = data.split("\n");

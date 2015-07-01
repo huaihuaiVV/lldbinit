@@ -2100,6 +2100,24 @@ def findmem(debugger, command, result, dict):
                         off += len(search_string)
         return
 
+def default_target_offset():
+        res = lldb.SBCommandReturnObject()
+        target =  str(lldb.debugger.GetSelectedTarget().GetProcess().GetTarget())
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "image list " + target, res)
+        if res.Succeeded():
+                p = re.compile("\[\s*\d+\] [-\w]+ (\w+) .*$")
+                m = p.search(res.GetOutput())
+                if not m:
+                        print("can't get default offset")
+                        return 0
+                if is_arm64():
+                        return long(m.group(1), 16) - 0x0000000100000000
+                if is_arm():
+                        return long(m.group(1), 16)
+                return 0
+        else:
+                print("image list failed, can't get default offset")
+                return 0
 
 def demangle(names):
         args = ['c++filt']
@@ -2174,7 +2192,7 @@ def bs_decode(debugger, command, result, dict):
         parser.add_argument( "-o", "--offset", help="load offset of the macho file")
         parser.add_argument( "-a", "--address", help="breakpoint address to set")
         parser = parser.parse_args(arg.split())
-        offset = 0
+        offset = default_target_offset()
         if parser.file is None:
                 print("don't pass file to parse its symbolss\n")
                 return
@@ -2199,7 +2217,7 @@ def name_decode(debugger, command, result, dict):
         parser.add_argument( "-o", "--offset", help="load offset of the macho file")
         parser.add_argument( "-a", "--address", help="breakpoint address to decode")
         parser = parser.parse_args(arg.split())
-        offset = 0
+        offset = default_target_offset()
         if parser.file is None:
                 print("don't pass file to parse its symbolss\n")
                 return

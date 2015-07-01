@@ -212,60 +212,26 @@ def __lldb_init_module(debugger, internal_dict):
                         return
         res = lldb.SBCommandReturnObject()
 
-        lldb.debugger.GetCommandInterpreter().HandleCommand(
-            "settings set target.x86-disassembly-flavor intel",
-            res)
-        lldb.debugger.GetCommandInterpreter().HandleCommand(
-            "command script add -f lldbinit.stepo stepo",
-            res)
-        lldb.debugger.GetCommandInterpreter().HandleCommand(
-            "command script add -f lldbinit.HandleHookStopOnTarget HandleHookStopOnTarget",
-            res)
-        lldb.debugger.GetCommandInterpreter().HandleCommand(
-            "command script add -f lldbinit.dd dd",
-            res)
-        lldb.debugger.GetCommandInterpreter().HandleCommand(
-            "command script add -f lldbinit.si si",
-            res)
-        lldb.debugger.GetCommandInterpreter().HandleCommand(
-            "command script add -f lldbinit.r  r",
-            res)
-        lldb.debugger.GetCommandInterpreter().HandleCommand(
-            "command script add -f lldbinit.r  run",
-            res)
-        lldb.debugger.GetCommandInterpreter().HandleCommand(
-            "command script add -f lldbinit.HandleHookStopOnTarget ctx",
-            res)
-        lldb.debugger.GetCommandInterpreter().HandleCommand(
-            "command script add -f lldbinit.HandleHookStopOnTarget context",
-            res)
-        lldb.debugger.GetCommandInterpreter().HandleCommand(
-            "command script add -f lldbinit.DumpInstructions u",
-            res)
-        lldb.debugger.GetCommandInterpreter().HandleCommand(
-            "command script add -f lldbinit.LoadBreakPoints lb",
-            res)
-        lldb.debugger.GetCommandInterpreter().HandleCommand(
-            "command script add -f lldbinit.LoadBreakPointsRva lbrva",
-            res)
-        lldb.debugger.GetCommandInterpreter().HandleCommand(
-            "command script add -f lldbinit.dq dq",
-            res)
-        lldb.debugger.GetCommandInterpreter().HandleCommand(
-            "command script add -f lldbinit.ddword ddword",
-            res)
-        lldb.debugger.GetCommandInterpreter().HandleCommand(
-            "command script add -f lldbinit.dw dw",
-            res)
-        lldb.debugger.GetCommandInterpreter().HandleCommand(
-            "command script add -f lldbinit.IphoneConnect iphone",
-            res)
-        lldb.debugger.GetCommandInterpreter().HandleCommand(
-            "command script add -f lldbinit.findmem findmem",
-            res)
-        lldb.debugger.GetCommandInterpreter().HandleCommand(
-            "command script add -f lldbinit.bt_decode bt_decode",
-            res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "settings set target.x86-disassembly-flavor intel", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.stepo stepo", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.HandleHookStopOnTarget HandleHookStopOnTarget", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.dd dd", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.si si", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.r  r", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.r  run", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.HandleHookStopOnTarget ctx", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.HandleHookStopOnTarget context", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.DumpInstructions u", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.LoadBreakPoints lb", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.LoadBreakPointsRva lbrva", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.dq dq", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.ddword ddword", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.dw dw", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.IphoneConnect iphone", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.findmem findmem", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.bt_decode bt_decode", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.bs_decode bs_decode", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.vmmap_target vmmap_target", res)
 
         '''
 		target stop-hook can be added only when target is loaded, thus I create thread
@@ -2146,28 +2112,16 @@ def demangle(names):
         assert len(demangled) == len(names)+1
         return demangled[:-1]
 
-
-def bt_decode(debugger, command, result, dict):
-        arg = str(command)
-        parser = argparse.ArgumentParser(prog="lldb")
-        parser.add_argument(
-            "-f",
-            "--file",
-            help="macho file to parse its symbols")
-        parser.add_argument(
-            "-o",
-            "--offset",
-            help="load offset of the macho file")
-        parser = parser.parse_args(arg.split())
-        offset = 0
-        if parser.file is None:
-                print("don't pass file to parse its symbolss\n")
-                return
-        if parser.offset is not None:
-                offset = evaluate(parser.offset)
-
-        pipe = subprocess.Popen(
-            ["nm", "-U", "-n", "-t", "x", "-arch", get_arch(), parser.file],
+def __get_func(address, symbols_data_base):
+        for a in sorted(symbols_data_base.keys()):
+                if a >= address:
+                        p = re.compile("\W")
+                        if p.search(symbols_data_base[a]):
+                                return [a, symbols_data_base[a]]
+                        return [a, demangle([symbols_data_base[a]])[0]]
+        return [0, "...unknow"]
+def build_symbol(file):
+        pipe = subprocess.Popen( ["nm", "-U", "-n", "-t", "x", "-arch", get_arch(), file],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE)
         stdout, _ = pipe.communicate()
         stdout = stdout.split("\n")
@@ -2177,18 +2131,26 @@ def bt_decode(debugger, command, result, dict):
                 m = p.search(l)
                 if not m:
                         continue
-                addr = int(m.group(1), 16)
+                addr = long(m.group(1), 16)
                 func = m.group(2)
                 symbols_data_base[addr] = func
+        return symbols_data_base
+
+def bt_decode(debugger, command, result, dict):
+        arg = str(command)
+        parser = argparse.ArgumentParser(prog="lldb")
+        parser.add_argument( "-f", "--file", help="macho file to parse its symbols")
+        parser.add_argument( "-o", "--offset", help="load offset of the macho file")
+        parser = parser.parse_args(arg.split())
+        offset = 0
+        if parser.file is None:
+                print("don't pass file to parse its symbolss\n")
+                return
+        if parser.offset is not None:
+                offset = evaluate(parser.offset)
+
+        symbols_data_base = build_symbol(parser.file)
         num = lldb.debugger.GetSelectedTarget().GetProcess().GetSelectedThread().GetNumFrames()
-        def __get_func(address):
-                for a in sorted(symbols_data_base.keys()):
-                        if a >= address:
-                                p = re.compile("\W")
-                                if p.search(symbols_data_base[a]):
-                                        return symbols_data_base[a]
-                                return demangle([symbols_data_base[a]])[0]
-                return "...unknow"
         for i in range(num):
                 frame = lldb.debugger.GetSelectedTarget().GetProcess().GetSelectedThread().GetFrameAtIndex(i)
                 current = lldb.debugger.GetSelectedTarget().GetProcess().GetSelectedThread().GetSelectedFrame().idx
@@ -2196,8 +2158,64 @@ def bt_decode(debugger, command, result, dict):
                         tag = "\t *"
                 else:
                         tag = "\t  "
-                format = tag + "#%d %x %s\n"
+                format = tag + "#%d %#x %s"
                 if not frame.name is None:
+                        format += "\n"
                         print(format % (i, frame.pc, frame.name))
                 else:
-                        print(format % (i, frame.pc, __get_func(frame.pc - offset)))
+                        format += " + %#x\n"
+                        a, s = __get_func(frame.pc - offset, symbols_data_base)
+                        print(format % (i, frame.pc, s, abs(frame.pc - offset - a)))
+
+def bs_decode(debugger, command, result, dict):
+        arg = str(command)
+        parser = argparse.ArgumentParser(prog="lldb")
+        parser.add_argument( "-f", "--file", help="macho file to parse its symbols")
+        parser.add_argument( "-o", "--offset", help="load offset of the macho file")
+        parser.add_argument( "-a", "--address", help="breakpoint address to set")
+        parser = parser.parse_args(arg.split())
+        offset = 0
+        if parser.file is None:
+                print("don't pass file to parse its symbolss\n")
+                return
+        if parser.address is not None:
+                address = evaluate(parser.address)
+        else:
+                print("don't pass address to set?")
+                return
+        if parser.offset is not None:
+                offset = evaluate(parser.offset)
+        symbols_data_base = build_symbol(parser.file)
+        a, s = __get_func(address, symbols_data_base)
+        res = lldb.SBCommandReturnObject()
+        address += offset
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "breakpoint set -a %#x -N %s" % (address, s), res)
+        print res.GetOutput()
+
+def name_decode(debugger, command, result, dict):
+        arg = str(command)
+        parser = argparse.ArgumentParser(prog="lldb")
+        parser.add_argument( "-f", "--file", help="macho file to parse its symbols")
+        parser.add_argument( "-o", "--offset", help="load offset of the macho file")
+        parser.add_argument( "-a", "--address", help="breakpoint address to decode")
+        parser = parser.parse_args(arg.split())
+        offset = 0
+        if parser.file is None:
+                print("don't pass file to parse its symbolss\n")
+                return
+        if parser.address is not None:
+                address = evaluate(parser.address)
+        else:
+                print("don't pass address to decode?")
+                return
+        if parser.offset is not None:
+                offset = evaluate(parser.offset)
+        symbols_data_base = build_symbol(parser.file)
+        a, s = __get_func(address - offset, symbols_data_base)
+        print("%s + %x\n", s, address - offset - a)
+
+def vmmap_target(debugger, command, result, dict):
+        res = lldb.SBCommandReturnObject()
+        target =  str(lldb.debugger.GetSelectedTarget().GetProcess().GetTarget())
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "image list " + target, res)
+        print res.GetOutput()

@@ -178,6 +178,7 @@ GlobalListOutput = []
 
 hook_stop_added = 0
 
+default_target_file = None
 
 def wait_for_hook_stop():
         while True:
@@ -232,6 +233,8 @@ def __lldb_init_module(debugger, internal_dict):
         lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.bt_decode bt_decode", res)
         lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.bs_decode bs_decode", res)
         lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.vmmap_target vmmap_target", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.name_decode name_decode", res)
+        lldb.debugger.GetCommandInterpreter().HandleCommand( "command script add -f lldbinit.set_default_target_file set_default_target_file", res)
 
         '''
 		target stop-hook can be added only when target is loaded, thus I create thread
@@ -2131,12 +2134,19 @@ def demangle(names):
         return demangled[:-1]
 
 def __get_func(address, symbols_data_base):
-        for a in sorted(symbols_data_base.keys()):
+        l = sorted(symbols_data_base.keys())
+        for a in l:
                 if a >= address:
+                        if l.index(a) == 0:
+                                i = 0
+                        elif a == address:
+                                i = l.index(a)
+                        else:
+                                i = l.index(a) - 1
                         p = re.compile("\W")
-                        if p.search(symbols_data_base[a]):
-                                return [a, symbols_data_base[a]]
-                        return [a, demangle([symbols_data_base[a]])[0]]
+                        if p.search(symbols_data_base[l[i]]):
+                                return [l[i], symbols_data_base[l[i]]]
+                        return [l[i], demangle([symbols_data_base[l[i]]])[0]]
         return [0, "...unknow"]
 def build_symbol(file):
         pipe = subprocess.Popen( ["nm", "-U", "-n", "-t", "x", "-arch", get_arch(), file],
@@ -2160,10 +2170,9 @@ def bt_decode(debugger, command, result, dict):
         parser.add_argument( "-f", "--file", help="macho file to parse its symbols")
         parser.add_argument( "-o", "--offset", help="load offset of the macho file")
         parser = parser.parse_args(arg.split())
-        offset = 0
+        offset = default_target_offset()
         if parser.file is None:
-                print("don't pass file to parse its symbolss\n")
-                return
+                parser.file = default_target_file
         if parser.offset is not None:
                 offset = evaluate(parser.offset)
 
@@ -2194,8 +2203,7 @@ def bs_decode(debugger, command, result, dict):
         parser = parser.parse_args(arg.split())
         offset = default_target_offset()
         if parser.file is None:
-                print("don't pass file to parse its symbolss\n")
-                return
+                parser.file = default_target_file
         if parser.address is not None:
                 address = evaluate(parser.address)
         else:
@@ -2219,8 +2227,7 @@ def name_decode(debugger, command, result, dict):
         parser = parser.parse_args(arg.split())
         offset = default_target_offset()
         if parser.file is None:
-                print("don't pass file to parse its symbolss\n")
-                return
+                parser.file = default_target_file
         if parser.address is not None:
                 address = evaluate(parser.address)
         else:
@@ -2230,10 +2237,21 @@ def name_decode(debugger, command, result, dict):
                 offset = evaluate(parser.offset)
         symbols_data_base = build_symbol(parser.file)
         a, s = __get_func(address - offset, symbols_data_base)
-        print("%s + %x\n", s, address - offset - a)
+        print("%#x = %s + %#x\n" % (address, s, address - offset - a))
 
 def vmmap_target(debugger, command, result, dict):
         res = lldb.SBCommandReturnObject()
         target =  str(lldb.debugger.GetSelectedTarget().GetProcess().GetTarget())
         lldb.debugger.GetCommandInterpreter().HandleCommand( "image list " + target, res)
         print res.GetOutput()
+
+def set_default_target_file(debugger, command, result, dict):
+        global default_target_file
+        arg = str(command)
+        parser = argparse.ArgumentParser(prog="lldb")
+        parser.add_argument( "-f", "--file", help="macho file to parse its symbols")
+        parser = parser.parse_args(arg.split())
+        if not parser.file is None:
+                print("set default_target_file to %s\n" % (parser.file))
+                default_target_file = parser.file
+        return
